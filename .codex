@@ -1,0 +1,18 @@
+# Project Rules
+
+- Use `uv` and `pyproject.toml` for all Python dependency and environment management.
+- `make venv` creates `.venv` with Python 3.10+ and installs project dependencies.
+- Target Python 3.10+ syntax directly; do not add `from __future__ import annotations`.
+- `make setenv` creates `.env` from `.env.example` without overwriting an existing `.env`.
+- `make data` prepares all required datasets under `.data/datasets`.
+- Keep `.data/`, `.env`, and `.venv` out of git.
+- do not use magic number as constant, model or function default parameters. create constant module with well described constants and use constant from this module for     
+  reradability in avery place where we need provide a number
+- Keep `scripts/` shell-only. Do not place Python files or embedded Python programs there.
+- Put Python implementation under `src/clml` subpackages. Keep package root limited to package metadata and `main.py`.
+- Use `src/clml/main.py` as the command-line entry point.
+- Every method run should write artifacts to `.data/<method_name>/<run_timestamp>/`.
+- Use sklearn `Pipeline`/`ColumnTransformer` so preprocessing is inside validation and tuning boundaries.
+- Use Optuna for hyperparameter optimization and MLflow for run logging.
+- Prefer realistic, reasonably sized datasets for learning value. Use small canonical datasets only when estimator constraints or runtime make them appropriate.
+- For third-party comparisons, prefer established Python ML packages such as XGBoost, LightGBM, and CatBoost where they add value over sklearn-only examples.

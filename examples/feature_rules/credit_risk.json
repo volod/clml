@@ -1,0 +1,30 @@
+{
+  "rules": [
+    {
+      "type": "datetime_parts",
+      "column": "application_date",
+      "parts": ["day_of_week", "month", "quarter", "is_weekend"]
+    },
+    {
+      "type": "numeric_bins",
+      "column": "age",
+      "bins": [0, 25, 30, 35, 40, 50, 65, 120],
+      "labels": ["<25", "25-29", "30-34", "35-39", "40-49", "50-64", "65+"],
+      "output_column": "age_group"
+    },
+    {
+      "type": "ratio",
+      "numerator": "loan_amount",
+      "denominator": "annual_income",
+      "output_column": "loan_to_income"
+    },
+    {
+      "type": "log1p",
+      "column": "annual_income"
+    },
+    {
+      "type": "log1p",
+      "column": "loan_amount"
+    }
+  ]
+}

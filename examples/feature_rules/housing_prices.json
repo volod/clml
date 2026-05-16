@@ -1,0 +1,23 @@
+{
+  "rules": [
+    {
+      "type": "datetime_parts",
+      "column": "listing_date",
+      "parts": ["day_of_week", "month", "quarter", "is_weekend"]
+    },
+    {
+      "type": "ratio",
+      "numerator": "living_area_sqft",
+      "denominator": "bedrooms",
+      "output_column": "sqft_per_bedroom"
+    },
+    {
+      "type": "log1p",
+      "column": "living_area_sqft"
+    },
+    {
+      "type": "log1p",
+      "column": "lot_area_sqft"
+    }
+  ]
+}
