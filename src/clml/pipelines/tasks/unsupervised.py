@@ -15,6 +15,7 @@ from clml.pipelines.tasks._shared import (
     _anomaly_scores,
     _finish,
     _fit_predict,
+    _optimize_density,
     _optimize_unsupervised,
     _pipeline,
 )
@@ -89,7 +90,7 @@ def run_anomaly(ctx: RunContext) -> RunResult:
 def run_density(ctx: RunContext) -> RunResult:
     x = ctx.bundle.x
     pipeline = _pipeline(ctx, x)
-    best_params = _optimize_unsupervised(ctx, pipeline, x)
+    best_params = _optimize_density(ctx, pipeline, x)
     pipeline.set_params(**best_params)
     pipeline.fit(x)
     scores = pipeline.score_samples(x)

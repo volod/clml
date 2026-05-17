@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     plot_format: str = "png"
     feature_engineering: bool = False
     feature_rules: Path | None = None
+    log_level: str = "WARNING"
+    log_file: Path | None = None
 
     @property
     def datasets_dir(self) -> Path:

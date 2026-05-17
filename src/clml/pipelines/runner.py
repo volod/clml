@@ -7,6 +7,7 @@ from typing import Any
 import mlflow
 import mlflow.sklearn
 
+from clml.config.log import get_logger
 from clml.config.settings import get_settings
 from clml.data.adapters import infer_data_format, read_frame
 from clml.data.catalog import DatasetBundle, DatasetInfo, load_dataset
@@ -17,6 +18,9 @@ from clml.methods.registry import MethodSpec, get_method
 from clml.pipelines._context import RunContext, RunResult
 from clml.pipelines._metrics import interpret_metrics
 from clml.pipelines.tasks import TASK_RUNNERS
+from clml.recommendations.methods import _infer_target_column, _infer_time_column
+
+logger = get_logger(__name__)
 
 # ---------------------------------------------------------------------------
 # Public API
@@ -34,6 +38,7 @@ def run_method(
     settings = get_settings()
     spec = get_method(method_name)
     bundle = load_dataset(dataset_name or spec.dataset)
+    logger.info("starting run: method=%s dataset=%s", method_name, bundle.info.name)
     ctx = _make_context(settings, spec, bundle, trials, feature_engineering, feature_rules_path)
     return _execute_run(ctx, extra_params={})
 
@@ -47,8 +52,7 @@ def run_data_file_method(
     feature_engineering: bool | None = None,
     feature_rules_path: Path | None = None,
 ) -> RunResult:
-    from clml.recommendations.methods import _infer_target_column, _infer_time_column
-
+    logger.info("starting run: method=%s data=%s", method_name, data_path)
     settings = get_settings()
     spec = get_method(method_name)
     frame = read_frame(data_path)
@@ -118,11 +122,19 @@ def _make_context(
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     run_dir = settings.data_dir / spec.name / timestamp
     run_dir.mkdir(parents=True, exist_ok=True)
+    n_trials = settings.optuna_trials if trials is None else trials
+    logger.debug(
+        "run context: dir=%s trials=%d feature_engineering=%s rules=%d",
+        run_dir,
+        n_trials,
+        use_fe,
+        len(feature_rules),
+    )
     return RunContext(
         spec=spec,
         bundle=bundle,
         run_dir=run_dir,
-        trials=settings.optuna_trials if trials is None else trials,
+        trials=n_trials,
         feature_engineering=use_fe,
         feature_rules=feature_rules,
     )
@@ -165,8 +177,10 @@ def _execute_run(ctx: RunContext, extra_params: dict[str, str]) -> RunResult:
             k: float(v) for k, v in result.metrics.items() if isinstance(v, int | float)
         }
         mlflow.log_metrics(numeric_metrics)
-        mlflow.set_tag("metric_interpretation", interpret_metrics(ctx.spec.task, result.metrics))
+        interpretation = interpret_metrics(ctx.spec.task, result.metrics)
+        mlflow.set_tag("metric_interpretation", interpretation)
         mlflow.log_artifacts(str(ctx.run_dir))
+        logger.info("run complete: %s → %s", ctx.spec.name, interpretation)
     return result
 
 
@@ -174,4 +188,5 @@ def _dispatch_run(ctx: RunContext) -> RunResult:
     runner = TASK_RUNNERS.get(ctx.spec.task)
     if runner is None:
         raise ValueError(f"Unsupported task type: {ctx.spec.task!r}")
+    logger.debug("dispatching task=%s method=%s", ctx.spec.task, ctx.spec.name)
     return runner(ctx)

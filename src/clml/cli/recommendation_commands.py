@@ -7,6 +7,9 @@ from rich.table import Table
 from clml.cli.common import console
 from clml.config.settings import get_settings
 from clml.data.catalog import load_dataset
+from clml.features.recommendations import recommend_feature_engineering
+from clml.features.report import write_feature_engineering_report
+from clml.methods.registry import get_method
 from clml.recommendations.methods import advise_methods_for_file
 
 
@@ -24,10 +27,6 @@ def feature_advice_command(
         typer.Option(help="Optional output directory for plots and rule suggestions."),
     ] = None,
 ) -> None:
-    from clml.features.recommendations import recommend_feature_engineering
-    from clml.features.report import write_feature_engineering_report
-    from clml.methods.registry import get_method
-
     settings = get_settings()
     spec = get_method(method)
     bundle = load_dataset(dataset or spec.dataset)

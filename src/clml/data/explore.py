@@ -7,7 +7,10 @@ import pandas as pd
 
 from clml.data.adapters import write_frame
 from clml.data.catalog import DatasetBundle
+from clml.config.log import get_logger
 from clml.reporting.plots import plot_correlation_heatmap, plot_feature_distributions
+
+logger = get_logger(__name__)
 
 
 @dataclass(frozen=True)
@@ -23,6 +26,7 @@ class ExplorationReport:
 
 
 def explore_dataset(bundle: DatasetBundle, output_dir: Path | None = None) -> ExplorationReport:
+    logger.debug("exploring dataset: %s (%d rows, %d cols)", bundle.info.name, bundle.info.rows, bundle.info.columns)
     frame = bundle.frame
     numeric = frame[bundle.info.feature_columns].select_dtypes(include="number")
     missing = frame.isna().mean().sort_values(ascending=False)

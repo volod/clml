@@ -1,6 +1,7 @@
 """Shared helpers used by all task runner modules."""
 
 import json
+import logging as stdlib_logging
 import warnings
 from pathlib import Path
 from typing import Any
@@ -11,6 +12,7 @@ import mlflow.sklearn
 import numpy as np
 import optuna
 import pandas as pd
+import skops.io as skops_io
 from sklearn.base import clone
 from sklearn.metrics import (
     accuracy_score,
@@ -28,11 +30,14 @@ from clml.constants import CV_FOLDS
 from clml.data.adapters import write_frame
 from clml.data.catalog import DatasetBundle
 from clml.features.rules import RuleBasedFeatureEngineer
+from clml.config.log import get_logger
 from clml.methods.registry import MethodSpec
 from clml.pipelines._context import RunContext, RunResult
 from clml.pipelines._metrics import interpret_metrics
 from clml.pipelines.preprocessing import build_model_pipeline
 from clml.reporting.plots import plot_named_bars
+
+logger = get_logger(__name__)
 
 
 def _write_json(path: Path, payload: Any) -> None:
@@ -74,18 +79,35 @@ def _finish(
     )
     if comparisons:
         _write_json(run_dir / "third_party_comparisons.json", comparisons)
-    joblib.dump(fitted_model, run_dir / "model.joblib")
+    try:
+        skops_io.dump(fitted_model, run_dir / "model.skops")
+    except Exception as exc:
+        logger.warning("skops serialization failed for %s (%s) — falling back to joblib", spec.name, exc)
+        joblib.dump(fitted_model, run_dir / "model.joblib")
     if isinstance(fitted_model, Pipeline) and mlflow.active_run() is not None:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             try:
                 mlflow.sklearn.log_model(
                     sk_model=fitted_model,
-                    artifact_path="registered_model",
+                    name="registered_model",
                     registered_model_name=spec.name,
+                    serialization_format=mlflow.sklearn.SERIALIZATION_FORMAT_SKOPS,
                 )
             except Exception:
-                pass
+                _mlflow_sklearn_log = stdlib_logging.getLogger("mlflow.sklearn")
+                _orig_level = _mlflow_sklearn_log.level
+                _mlflow_sklearn_log.setLevel(stdlib_logging.ERROR)
+                try:
+                    mlflow.sklearn.log_model(
+                        sk_model=fitted_model,
+                        name="registered_model",
+                        registered_model_name=spec.name,
+                    )
+                except Exception:
+                    pass
+                finally:
+                    _mlflow_sklearn_log.setLevel(_orig_level)
     return result
 
 
@@ -108,6 +130,7 @@ def _optimize_supervised(
 ) -> dict[str, Any]:
     if ctx.spec.param_space is None or ctx.trials <= 0:
         return {}
+    logger.info("optuna tuning: method=%s task=%s trials=%d", ctx.spec.name, task, ctx.trials)
     scoring = "f1_macro" if task == "classification" else "neg_root_mean_squared_error"
     cv: Any = StratifiedKFold(
         n_splits=CV_FOLDS, shuffle=True, random_state=get_settings().random_state
@@ -123,12 +146,15 @@ def _optimize_supervised(
 
     study = optuna.create_study(direction="maximize")
     study.optimize(objective, n_trials=ctx.trials, show_progress_bar=False)
-    return {f"model__{key}": value for key, value in study.best_params.items()}
+    best = {f"model__{key}": value for key, value in study.best_params.items()}
+    logger.debug("best params: %s (value=%.4f)", best, study.best_value)
+    return best
 
 
 def _optimize_unsupervised(ctx: RunContext, pipeline: Pipeline, x: pd.DataFrame) -> dict[str, Any]:
     if ctx.spec.param_space is None or ctx.trials <= 0:
         return {}
+    logger.info("optuna tuning (unsupervised): method=%s trials=%d", ctx.spec.name, ctx.trials)
 
     def objective(trial: optuna.Trial) -> float:
         candidate = clone(pipeline)
@@ -141,7 +167,27 @@ def _optimize_unsupervised(ctx: RunContext, pipeline: Pipeline, x: pd.DataFrame)
 
     study = optuna.create_study(direction="maximize")
     study.optimize(objective, n_trials=ctx.trials, show_progress_bar=False)
-    return {f"model__{key}": value for key, value in study.best_params.items()}
+    best = {f"model__{key}": value for key, value in study.best_params.items()}
+    logger.debug("best params: %s (value=%.4f)", best, study.best_value)
+    return best
+
+
+def _optimize_density(ctx: RunContext, pipeline: Pipeline, x: pd.DataFrame) -> dict[str, Any]:
+    if ctx.spec.param_space is None or ctx.trials <= 0:
+        return {}
+    logger.info("optuna tuning (density): method=%s trials=%d", ctx.spec.name, ctx.trials)
+
+    def objective(trial: optuna.Trial) -> float:
+        candidate = clone(pipeline)
+        candidate.set_params(**ctx.spec.param_space(trial))
+        candidate.fit(x)
+        return float(np.mean(candidate.score_samples(x)))
+
+    study = optuna.create_study(direction="maximize")
+    study.optimize(objective, n_trials=ctx.trials, show_progress_bar=False)
+    best = {f"model__{key}": value for key, value in study.best_params.items()}
+    logger.debug("best params: %s (value=%.4f)", best, study.best_value)
+    return best
 
 
 def _fit_predict(pipeline: Pipeline, x: pd.DataFrame) -> np.ndarray:
@@ -165,6 +211,7 @@ def _run_third_party_comparisons(
 ) -> dict[str, dict[str, float | int | str]]:
     comparisons: dict[str, dict[str, float | int | str]] = {}
     for name, factory in ctx.spec.third_party_factories.items():
+        logger.debug("running third-party comparison: %s", name)
         pipeline = build_model_pipeline(
             x_train,
             factory(get_settings().random_state),

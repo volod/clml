@@ -6,6 +6,10 @@ import numpy as np
 import pandas as pd
 from sklearn.base import BaseEstimator, TransformerMixin
 
+from clml.config.log import get_logger
+
+logger = get_logger(__name__)
+
 
 class RuleBasedFeatureEngineer(BaseEstimator, TransformerMixin):
     """Sklearn-compatible transformer for explicit, auditable feature rules."""
@@ -28,9 +32,9 @@ def load_rules(path: Path | None) -> list[dict[str, Any]]:
         return []
     with path.open("r", encoding="utf-8") as fh:
         payload = json.load(fh)
-    if isinstance(payload, list):
-        return payload
-    return list(payload.get("rules", []))
+    rules = payload if isinstance(payload, list) else list(payload.get("rules", []))
+    logger.info("loaded %d feature rules from %s", len(rules), path)
+    return rules
 
 
 def _apply_rule(frame: pd.DataFrame, rule: dict[str, Any]) -> pd.DataFrame:

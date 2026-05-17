@@ -17,6 +17,9 @@ from clml.data.specialized_datasets import (
 )
 from clml.data.supervised_datasets import _credit_risk, _housing_prices, _monotone_1d
 from clml.data.types import DatasetBundle, DatasetInfo
+from clml.config.log import get_logger
+
+logger = get_logger(__name__)
 
 
 def available_dataset_names() -> list[str]:
@@ -29,6 +32,7 @@ def load_dataset(name: str, *, prepare: bool = True) -> DatasetBundle:
         raise ValueError(f"Unknown dataset '{name}'. Available datasets: {names}")
     if prepare:
         return prepare_dataset(name)
+    logger.debug("building dataset without cache: %s", name)
     return _BUILDERS[name]()
 
 
@@ -45,7 +49,9 @@ def prepare_dataset(name: str) -> DatasetBundle:
             frame=frame,
         )
         if cached.info.rows == len(frame):
+            logger.debug("loaded dataset from cache: %s (%d rows)", name, cached.info.rows)
             return cached
+    logger.info("building and caching dataset: %s", name)
     bundle = _BUILDERS[name]()
     dataset_dir.mkdir(parents=True, exist_ok=True)
     write_frame(data_path, bundle.frame)
