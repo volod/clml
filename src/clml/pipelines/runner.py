@@ -145,6 +145,10 @@ def _make_context(
 def _execute_run(ctx: RunContext, extra_params: dict[str, str]) -> RunResult:
     settings = get_settings()
     mlflow.set_tracking_uri(settings.mlflow_tracking_uri)
+    artifact_location = str((settings.data_dir / "mlruns").resolve())
+    client = mlflow.MlflowClient()
+    if client.get_experiment_by_name(ctx.spec.name) is None:
+        client.create_experiment(ctx.spec.name, artifact_location=artifact_location)
     mlflow.set_experiment(ctx.spec.name)
     with mlflow.start_run(run_name=ctx.run_dir.name):
         mlflow.log_params(

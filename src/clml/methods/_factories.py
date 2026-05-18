@@ -3,6 +3,7 @@ from functools import partial
 from sklearn import ensemble, feature_selection, linear_model, svm
 
 from clml import constants
+from clml.config.settings import get_settings
 
 
 def _xgboost_classifier(seed: int):
@@ -55,22 +56,26 @@ def _lightgbm_regressor(seed: int):
 def _catboost_classifier(seed: int):
     from catboost import CatBoostClassifier
 
+    train_dir = str(get_settings().data_dir / "catboost_info")
     return CatBoostClassifier(
         iterations=constants.GBM_N_ESTIMATORS,
         learning_rate=constants.GBM_LEARNING_RATE,
         random_seed=seed,
         verbose=False,
+        train_dir=train_dir,
     )
 
 
 def _catboost_regressor(seed: int):
     from catboost import CatBoostRegressor
 
+    train_dir = str(get_settings().data_dir / "catboost_info")
     return CatBoostRegressor(
         iterations=constants.GBM_N_ESTIMATORS,
         learning_rate=constants.GBM_LEARNING_RATE,
         random_seed=seed,
         verbose=False,
+        train_dir=train_dir,
     )
 
 
