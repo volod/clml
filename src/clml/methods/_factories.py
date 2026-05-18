@@ -125,7 +125,7 @@ def _river_logistic_regression(seed: int):
         (
             "model",
             linear_model.LogisticRegression(
-                optimizer=optim.SGD(0.05),
+                optimizer=optim.SGD(constants.RIVER_LOGISTIC_LEARNING_RATE),
             ),
         ),
     )

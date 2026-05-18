@@ -6,6 +6,34 @@ Each constant is documented with its purpose and rationale.
 """
 
 # ---------------------------------------------------------------------------
+# Output directory structure
+# ---------------------------------------------------------------------------
+
+TASK_GROUPS: dict[str, str] = {
+    "classification": "classification",
+    "imbalanced_classification": "classification",
+    "incremental_classification": "classification",
+    "statsmodels_classification": "classification",
+    "categorical_encoding": "classification",
+    "feature_selection": "classification",
+    "regression": "regression",
+    "statsmodels_regression": "regression",
+    "regression_1d": "regression",
+    "timeseries": "timeseries",
+    "clustering": "clustering",
+    "anomaly": "anomaly",
+    "density": "density",
+    "dimensionality": "dimensionality",
+    "linear_programming": "optimization",
+    "nonlinear_optimization": "optimization",
+    "cvxpy_portfolio": "optimization",
+    "cvxpy_quadratic": "optimization",
+    "survival_cox": "survival",
+    "survival_kaplan_meier": "survival",
+}
+"""Map each task type to a top-level group folder under DATA_DIR/runs/."""
+
+# ---------------------------------------------------------------------------
 # Train / validation split
 # ---------------------------------------------------------------------------
 
@@ -116,13 +144,13 @@ GPR_N_RESTARTS = 3
 MLP_CLF_HIDDEN_LAYERS = (32,)
 """Hidden layer sizes for MLPClassifier."""
 
-MLP_CLF_MAX_ITER = 500
+MLP_CLF_MAX_ITER = 2_000
 """Maximum training epochs for MLPClassifier."""
 
 MLP_REG_HIDDEN_LAYERS = (64, 32)
 """Hidden layer sizes for MLPRegressor (wider than classifier to handle regression scale)."""
 
-MLP_REG_MAX_ITER = 1_000
+MLP_REG_MAX_ITER = 2_000
 """Maximum training epochs for MLPRegressor."""
 
 QDA_REG_PARAM = 0.1
@@ -614,7 +642,307 @@ SURVIVAL_DURATION_MAX = 60.0
 
 # --- monotone_1d ---
 MONOTONE_N_SAMPLES = 600
+
 MONOTONE_X_MAX = 10.0
 MONOTONE_LINEAR_COEF = 2.0
 MONOTONE_LOG_COEF = 3.0
 MONOTONE_NOISE_STD = 1.5
+
+# --- credit risk extra generation parameters ---
+CREDIT_RISK_DATE_START = "2023-01-01"
+"""ISO date string for the earliest synthetic credit-risk application date."""
+
+CREDIT_RISK_MIN_CREDIT_AGE = 18
+"""Age (years) at which a borrower's credit history starts accumulating."""
+
+CREDIT_RISK_CREDIT_HIST_MAX = 45
+"""Upper clip for credit history years after beta sampling."""
+
+CREDIT_RISK_DELINQ_POISSON_SCALE = 1.8
+"""Multiplier applied to debt_to_income to produce the Poisson rate for delinquencies."""
+
+CREDIT_RISK_DELINQ_POISSON_MIN = 0.05
+"""Minimum Poisson rate for delinquencies (floor clip before sampling)."""
+
+# --- housing prices extra generation parameters ---
+HOUSING_DATE_START = "2022-01-01"
+"""ISO date string for the earliest synthetic housing listing date."""
+
+# --- airline passengers date anchor ---
+AIRLINE_DATE_START = "2010-01-01"
+"""ISO date string for the first month in the synthetic airline-passengers time series."""
+
+# ---------------------------------------------------------------------------
+# Run artifact file names
+# (All output files written by task runners use these names.)
+# ---------------------------------------------------------------------------
+
+RUN_TIMESTAMP_FORMAT = "%Y%m%dT%H%M%SZ"
+"""strftime format for the run directory timestamp (ISO-8601 compact UTC)."""
+
+# Core run metadata
+ARTIFACT_RUN_JSON = "run.json"
+"""Serialised RunResult written at the end of every run."""
+
+ARTIFACT_THIRD_PARTY_JSON = "third_party_comparisons.json"
+"""Side-by-side metrics from XGBoost / LightGBM / CatBoost comparison runs."""
+
+ARTIFACT_RUN_ALL_LEARNING_MD = "learning_insights.md"
+"""Human-readable learning insights generated from a run-all summary."""
+
+ARTIFACT_RUN_ALL_LEARNING_CSV = "learning_insights.csv"
+"""Tabular learning signals generated from a run-all summary."""
+
+ARTIFACT_MODEL_SKOPS = "model.skops"
+"""Primary model serialisation (skops format)."""
+
+ARTIFACT_MODEL_JOBLIB = "model.joblib"
+"""Fallback model serialisation used when skops cannot handle the estimator type."""
+
+# Supervised learning
+ARTIFACT_PREDICTIONS_CSV = "predictions.csv"
+"""Actual vs predicted values for classification and regression tasks."""
+
+ARTIFACT_DISTRIBUTION_PREDICTIONS_CSV = "distribution_predictions.csv"
+"""Predicted distribution parameters and quantiles for probabilistic regressors (e.g. NGBoost)."""
+
+ARTIFACT_CLASSIFICATION_REPORT_JSON = "classification_report.json"
+"""Per-class precision, recall, and F1 from sklearn classification_report."""
+
+ARTIFACT_CONFUSION_MATRIX_PNG = "confusion_matrix.png"
+"""Confusion matrix heatmap for classification tasks."""
+
+ARTIFACT_PREDICTION_SCATTER_PNG = "prediction_scatter.png"
+"""Actual vs predicted scatter plot for regression tasks."""
+
+# Clustering / dimensionality / anomaly / density
+ARTIFACT_CLUSTERS_CSV = "clusters.csv"
+"""Cluster label per sample produced by clustering algorithms."""
+
+ARTIFACT_CLUSTERS_PNG = "clusters.png"
+"""2-D PCA projection coloured by cluster label."""
+
+ARTIFACT_EMBEDDING_CSV = "embedding.csv"
+"""Low-dimensional embedding coordinates from dimensionality-reduction methods."""
+
+ARTIFACT_EMBEDDING_PNG = "embedding.png"
+"""2-D scatter of the embedding coloured by true labels (if available)."""
+
+ARTIFACT_ANOMALY_SCORES_CSV = "anomaly_scores.csv"
+"""Actual labels, predictions, and raw anomaly scores for anomaly-detection methods."""
+
+ARTIFACT_ANOMALIES_PNG = "anomalies.png"
+"""2-D projection with anomalous samples highlighted."""
+
+ARTIFACT_DENSITY_SCORES_CSV = "density_scores.csv"
+"""Per-sample log-likelihood from kernel density or GMM density estimation."""
+
+ARTIFACT_DENSITY_PNG = "density.png"
+"""2-D projection coloured by log-likelihood value."""
+
+# Time series
+ARTIFACT_FORECAST_CSV = "forecast.csv"
+"""Actual vs forecast values for the hold-out horizon."""
+
+ARTIFACT_SERIES_CSV = "series.csv"
+"""Full observed training series used for fitting."""
+
+ARTIFACT_FORECAST_PNG = "forecast.png"
+"""Observed + forecast line chart."""
+
+# Optimisation / portfolio
+ARTIFACT_ALLOCATION_CSV = "allocation.csv"
+"""Optimised allocation (portfolio weights or production units) per asset / product."""
+
+ARTIFACT_COVARIANCE_CSV = "covariance.csv"
+"""Asset return covariance matrix used in portfolio optimisation."""
+
+ARTIFACT_RESOURCE_USAGE_CSV = "resource_usage.csv"
+"""Capacity, used, slack, and utilisation for each resource in the LP model."""
+
+# Survival analysis
+ARTIFACT_COX_COEFFICIENTS_CSV = "cox_coefficients.csv"
+"""Cox model coefficient table with standard errors and p-values."""
+
+ARTIFACT_SURVIVAL_PREDICTIONS_CSV = "survival_predictions.csv"
+"""Test-set rows with appended partial-hazard risk scores."""
+
+# Feature selection
+ARTIFACT_SELECTED_FEATURES_CSV = "selected_features.csv"
+"""Names of the features retained after the selection step."""
+
+ARTIFACT_FEATURE_SELECTION_DIAGNOSTICS_CSV = "feature_selection_diagnostics.csv"
+"""Per-feature diagnostics: selected flag, selector score, and ranking where available."""
+
+# Exploration and feature-engineering reports
+ARTIFACT_EXPLORATION_JSON = "exploration.json"
+"""Serialised ExplorationReport with dataset profile, missing fractions, and suggestions."""
+
+ARTIFACT_NUMERIC_SUMMARY_CSV = "numeric_summary.csv"
+"""pandas describe() transposed for numeric features."""
+
+ARTIFACT_CORRELATION_PNG = "correlation.png"
+"""Pearson correlation heatmap of numeric features."""
+
+ARTIFACT_FEATURES_PNG = "features.png"
+"""Histogram grid of feature distributions."""
+
+ARTIFACT_FE_RECOMMENDATIONS_JSON = "recommendations.json"
+"""Feature-engineering advice JSON written by the feature-engineering reporter."""
+
+ARTIFACT_FE_CANDIDATE_RULES_JSON = "candidate_rules.json"
+"""Candidate feature-engineering rule list derived from the dataset profile."""
+
+# Dataset cache
+ARTIFACT_DATASET_DATA_CSV = "data.csv"
+"""Cached dataset frame written to <DATA_DIR>/datasets/<name>/data.csv."""
+
+ARTIFACT_DATASET_METADATA_JSON = "metadata.json"
+"""Cached DatasetInfo JSON written alongside data.csv."""
+
+# Suggest-methods output
+ARTIFACT_METHOD_ADVICE_JSON = "method_advice.json"
+"""Serialised DatasetMethodAdvice written by the suggest-methods command."""
+
+# ---------------------------------------------------------------------------
+# Plot configuration
+# (All matplotlib / seaborn output uses these values for consistency.)
+# ---------------------------------------------------------------------------
+
+PLOT_DPI = 140
+"""Output resolution (dots per inch) for all saved plot images."""
+
+PLOT_FIGSIZE_HEATMAP = (10, 8)
+"""Figure dimensions (width, height) in inches for correlation heatmaps."""
+
+PLOT_FIGSIZE_DISTRIBUTIONS = (12, 8)
+"""Figure dimensions for the feature-distribution histogram grid."""
+
+PLOT_DISTRIBUTION_MAX_COLUMNS = 8
+"""Maximum number of feature columns shown in the distribution histogram grid."""
+
+PLOT_DISTRIBUTION_BINS = 30
+"""Number of histogram bins for feature-distribution plots."""
+
+PLOT_FIGSIZE_SCATTER = (7, 6)
+"""Figure dimensions for regression actual-vs-predicted scatter plots."""
+
+PLOT_SCATTER_MARKER_SIZE = 35
+"""Scatter-plot marker size (s parameter) for regression predictions."""
+
+PLOT_SCATTER_LINE_WIDTH = 1
+"""Line width of the identity (y=x) reference line on regression scatter plots."""
+
+PLOT_FIGSIZE_TIMESERIES = (10, 5)
+"""Figure dimensions for time-series forecast plots."""
+
+PLOT_TIMESERIES_OBSERVED_LINE_WIDTH = 1.8
+"""Line width for the observed series in forecast plots."""
+
+PLOT_TIMESERIES_FORECAST_LINE_WIDTH = 2.0
+"""Line width for the forecast series in forecast plots (slightly bolder than observed)."""
+
+PLOT_FIGSIZE_PROJECTION = (7, 6)
+"""Figure dimensions for 2-D dimensionality-reduction projection scatter plots."""
+
+PLOT_PROJECTION_MARKER_SIZE = 28
+"""Scatter marker size for 2-D projection plots."""
+
+PLOT_PROJECTION_PALETTE = "tab10"
+"""Colour palette used for cluster / class labels in projection scatter plots."""
+
+PLOT_FIGSIZE_BARS = (9, 5)
+"""Figure dimensions for named bar charts (feature importances, resource utilisation, etc.)."""
+
+PLOT_BARS_LABEL_ROTATION = 25
+"""X-axis label rotation angle (degrees) for bar charts."""
+
+PLOT_FIGSIZE_RESPONSE_CURVES = (9, 6)
+"""Figure dimensions for marketing response-curve plots."""
+
+PLOT_RESPONSE_GRID_POINTS = 80
+"""Number of evenly-spaced spend values used to draw each response curve."""
+
+PLOT_RESPONSE_SCATTER_SIZE = 35
+"""Scatter marker size for the optimised spend point on response-curve plots."""
+
+PLOT_FIGSIZE_SKEW = (9, 5)
+"""Figure dimensions for the numeric-skew bar chart in feature-engineering reports."""
+
+PLOT_FIGSIZE_MUTUAL_INFO = (9, 6)
+"""Figure dimensions for the mutual-information bar chart in feature-engineering reports."""
+
+PLOT_TOP_FEATURES_COUNT = 15
+"""Maximum number of features shown in skew and mutual-information plots."""
+
+# ---------------------------------------------------------------------------
+# Data quality and inference thresholds
+# ---------------------------------------------------------------------------
+
+DATETIME_PARSE_MIN_NOTNA_FRACTION = 0.8
+"""Minimum successful parse fraction for treating a column as a datetime candidate."""
+
+TARGET_CONTINUOUS_MIN_NUNIQUE = 20
+"""Unique-value count above which a numeric target column is treated as continuous (regression)
+rather than categorical (classification)."""
+
+CORRELATION_WARN_THRESHOLD_INFERENCE = 0.95
+"""Pairwise absolute correlation above this value triggers a collinearity note in dataset notes."""
+
+CORRELATION_WARN_THRESHOLD_EXPLORE = 0.85
+"""Pairwise absolute correlation above this value triggers the 'check correlated predictors'
+suggestion in the exploration report."""
+
+SKEW_THRESHOLD = 1.0
+"""Absolute skewness above this value indicates a feature is right-skewed and may benefit from
+a log or quantile transform."""
+
+OUTLIER_MIN_SAMPLES = 10
+"""Minimum non-null values required before running IQR outlier detection."""
+
+OUTLIER_IQR_Q1 = 0.25
+"""First quartile used in IQR-fence outlier detection."""
+
+OUTLIER_IQR_Q3 = 0.75
+"""Third quartile used in IQR-fence outlier detection."""
+
+OUTLIER_IQR_MULTIPLIER = 1.5
+"""Tukey multiplier for the IQR fence (standard 1.5 × IQR rule)."""
+
+IMBALANCE_MINORITY_THRESHOLD = 0.2
+"""Minority class frequency below this value is flagged as class imbalance."""
+
+EXPLORE_MANY_FEATURES_THRESHOLD = 25
+"""Feature count above this value triggers a dimensionality-reduction suggestion."""
+
+# ---------------------------------------------------------------------------
+# Metric computation
+# ---------------------------------------------------------------------------
+
+DISTRIBUTION_QUANTILE_P05 = 0.05
+"""5th-percentile quantile extracted from probabilistic regression distributions."""
+
+DISTRIBUTION_QUANTILE_P50 = 0.50
+"""Median (50th-percentile) quantile for probabilistic regression distributions."""
+
+DISTRIBUTION_QUANTILE_P95 = 0.95
+"""95th-percentile quantile for probabilistic regression distributions."""
+
+MAPE_DENOMINATOR_FLOOR = 1e-9
+"""Floor applied to the denominator in MAPE to avoid division by zero on near-zero actuals."""
+
+TIMESERIES_HORIZON_DIVISOR = 4
+"""The hold-out horizon is min(TIMESERIES_HOLDOUT, series_length // TIMESERIES_HORIZON_DIVISOR)."""
+
+PROB_BINARY_THRESHOLD = 0.5
+"""Default decision threshold for converting predicted probabilities to binary class labels."""
+
+# ---------------------------------------------------------------------------
+# Specific model parameters
+# ---------------------------------------------------------------------------
+
+RANSAC_MIN_SAMPLES_FRACTION = 0.5
+"""Fraction of the dataset used as the random consensus subset in each RANSAC iteration."""
+
+RIVER_LOGISTIC_LEARNING_RATE = 0.05
+"""SGD learning rate for the online logistic regression model from the River library."""

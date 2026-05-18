@@ -37,7 +37,7 @@ clml run-all --trials 0                           # smoke-test every method
 # Review
 clml runs list
 clml runs last
-clml runs export --output .data/runs_summary.csv
+clml runs export --output <DATA_DIR>/reports/runs_summary.csv
 ```
 
 Without activating `.venv`, prefix commands with `uv run`.
@@ -62,6 +62,8 @@ Without activating `.venv`, prefix commands with `uv run`.
 | [docs/feature_engineering.md](docs/feature_engineering.md) | Feature rules reference |
 | [docs/extended_methods.md](docs/extended_methods.md) | Third-party library methods |
 | [docs/method_recommendations.md](docs/method_recommendations.md) | `suggest-methods` guide |
+| [docs/metrics.md](docs/metrics.md) | Metrics thesaurus, quality thresholds, and per-method interpretation |
+| [docs/learning_path.md](docs/learning_path.md) | Human learning path for math/physics-trained data scientists |
 
 ## Project Layout
 
@@ -70,5 +72,5 @@ src/clml/       Python package
 docs/           Reference documentation
 examples/       Feature rule examples
 scripts/        Make targets shell scripts
-.data/          Run outputs and dataset cache (gitignored)
+.data/          Configurable output root (CLML_DATA_DIR); contains datasets/, runs/, service/, reports/ (gitignored)
 ```

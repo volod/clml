@@ -3,7 +3,9 @@ from collections.abc import Callable
 
 from sklearn import datasets
 
+from clml.config.log import get_logger
 from clml.config.settings import get_settings
+from clml.constants import ARTIFACT_DATASET_DATA_CSV, ARTIFACT_DATASET_METADATA_JSON
 from clml.data.adapters import read_frame, write_frame
 from clml.data.sklearn_datasets import _blobs, _digits, _moons, _sklearn_bunch_frame
 from clml.data.specialized_datasets import (
@@ -17,7 +19,6 @@ from clml.data.specialized_datasets import (
 )
 from clml.data.supervised_datasets import _credit_risk, _housing_prices, _monotone_1d
 from clml.data.types import DatasetBundle, DatasetInfo
-from clml.config.log import get_logger
 
 logger = get_logger(__name__)
 
@@ -39,8 +40,8 @@ def load_dataset(name: str, *, prepare: bool = True) -> DatasetBundle:
 def prepare_dataset(name: str) -> DatasetBundle:
     settings = get_settings()
     dataset_dir = settings.datasets_dir / name
-    data_path = dataset_dir / "data.csv"
-    metadata_path = dataset_dir / "metadata.json"
+    data_path = dataset_dir / ARTIFACT_DATASET_DATA_CSV
+    metadata_path = dataset_dir / ARTIFACT_DATASET_METADATA_JSON
     if data_path.exists() and metadata_path.exists():
         frame = read_frame(data_path)
         raw = json.loads(metadata_path.read_text(encoding="utf-8"))

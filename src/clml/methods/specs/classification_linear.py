@@ -81,10 +81,17 @@ METHODS = {
         "1.5 Stochastic Gradient Descent",
         "classification",
         "credit_risk",
-        lambda seed: ctx.linear_model.PassiveAggressiveClassifier(
-            max_iter=ctx.PASSIVE_AGGRESSIVE_MAX_ITER, random_state=seed
+        lambda seed: ctx.linear_model.SGDClassifier(
+            loss="hinge",
+            penalty=None,
+            learning_rate="pa1",
+            eta0=1.0,
+            max_iter=ctx.PASSIVE_AGGRESSIVE_MAX_ITER,
+            random_state=seed,
         ),
-        lambda trial: {"model__C": trial.suggest_float("C", ctx.PA_C_MIN, ctx.PA_C_MAX, log=True)},
+        lambda trial: {
+            "model__eta0": trial.suggest_float("eta0", ctx.PA_C_MIN, ctx.PA_C_MAX, log=True)
+        },
         notes=(
             "Online linear classifier: stays passive when prediction is correct, makes the "
             "minimal aggressive update when wrong. Natural fit for streaming or incremental "

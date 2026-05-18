@@ -1,13 +1,13 @@
 # MLflow Integration
 
 Every `clml run` automatically logs to MLflow. The local SQLite backend is configured
-in `.env` as `CLML_MLFLOW_TRACKING_URI=sqlite:///.data/mlflow.db`.
+in `.env` as `CLML_MLFLOW_TRACKING_URI` (defaults to `sqlite:///<DATA_DIR>/service/mlflow.db`).
 
 ## Start the UI
 
 ```bash
 make mlflow
-# or: uv run mlflow ui --backend-store-uri sqlite:///.data/mlflow.db --host 127.0.0.1 --port 5000
+# or: uv run mlflow ui --backend-store-uri sqlite:///<DATA_DIR>/service/mlflow.db --host 127.0.0.1 --port 5000
 ```
 
 Open `http://127.0.0.1:5000`.
@@ -47,7 +47,7 @@ predictions = model.predict(x_test)
 
 ```python
 import mlflow
-mlflow.set_tracking_uri("sqlite:///.data/mlflow.db")
+mlflow.set_tracking_uri("sqlite:///<DATA_DIR>/service/mlflow.db")
 model = mlflow.sklearn.load_model("runs:/<run_id>/registered_model")
 ```
 
@@ -82,7 +82,7 @@ Silhouette quality: > 0.5 = well-separated, > 0.2 = overlapping, ≤ 0.2 = poor.
 3. Use `clml runs export` to get a flat CSV for external analysis:
 
 ```bash
-clml runs export --output .data/runs_summary.csv
+clml runs export --output <DATA_DIR>/reports/runs_summary.csv
 ```
 
 ## Querying MLflow programmatically
@@ -91,7 +91,7 @@ clml runs export --output .data/runs_summary.csv
 import mlflow
 import pandas as pd
 
-mlflow.set_tracking_uri("sqlite:///.data/mlflow.db")
+mlflow.set_tracking_uri("sqlite:///<DATA_DIR>/service/mlflow.db")
 client = mlflow.tracking.MlflowClient()
 
 # List registered models

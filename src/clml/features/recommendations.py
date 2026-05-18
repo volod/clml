@@ -3,6 +3,7 @@ from typing import Any
 
 import pandas as pd
 
+from clml.constants import SKEW_THRESHOLD
 from clml.data.catalog import DatasetBundle
 from clml.methods.registry import MethodSpec
 
@@ -60,7 +61,7 @@ def recommend_feature_engineering(
         )
 
     for column, skew in numeric.skew(numeric_only=True).abs().items():
-        if skew > 1.0:
+        if skew > SKEW_THRESHOLD:
             recommendations.append(
                 f"Consider `log1p` transform for skewed numeric feature `{column}`."
             )

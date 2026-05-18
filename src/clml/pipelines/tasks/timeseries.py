@@ -3,7 +3,15 @@
 import numpy as np
 import pandas as pd
 
-from clml.constants import AIRLINE_SEASONAL_PERIODS, TIMESERIES_HOLDOUT
+from clml.constants import (
+    AIRLINE_SEASONAL_PERIODS,
+    ARTIFACT_FORECAST_CSV,
+    ARTIFACT_FORECAST_PNG,
+    ARTIFACT_SERIES_CSV,
+    MAPE_DENOMINATOR_FLOOR,
+    TIMESERIES_HOLDOUT,
+    TIMESERIES_HORIZON_DIVISOR,
+)
 from clml.data.adapters import write_frame
 from clml.pipelines._context import RunContext, RunResult
 from clml.pipelines.tasks._shared import _finish
@@ -12,7 +20,7 @@ from clml.reporting.plots import plot_timeseries_forecast
 
 def run_timeseries(ctx: RunContext) -> RunResult:
     series = _target_series(ctx.bundle.frame, ctx.bundle.info.target_column)
-    horizon = min(TIMESERIES_HOLDOUT, max(1, len(series) // 4))
+    horizon = min(TIMESERIES_HOLDOUT, max(1, len(series) // TIMESERIES_HORIZON_DIVISOR))
     train = series.iloc[:-horizon]
     test = series.iloc[-horizon:]
     fitted = _fit_timeseries_model(ctx.spec.name, train)
@@ -20,9 +28,13 @@ def run_timeseries(ctx: RunContext) -> RunResult:
     forecast.index = test.index
     metrics = _forecast_metrics(test, forecast)
     output = pd.DataFrame({"actual": test, "forecast": forecast})
-    write_frame(ctx.run_dir / "forecast.csv", output, include_index=True)
-    write_frame(ctx.run_dir / "series.csv", pd.DataFrame({"observed": series}), include_index=True)
-    plot_timeseries_forecast(series, forecast, ctx.run_dir / "forecast.png", ctx.spec.title)
+    write_frame(ctx.run_dir / ARTIFACT_FORECAST_CSV, output, include_index=True)
+    write_frame(
+        ctx.run_dir / ARTIFACT_SERIES_CSV,
+        pd.DataFrame({"observed": series}),
+        include_index=True,
+    )
+    plot_timeseries_forecast(series, forecast, ctx.run_dir / ARTIFACT_FORECAST_PNG, ctx.spec.title)
     return _finish(ctx.spec, ctx.bundle, ctx.run_dir, fitted, metrics, {}, {})
 
 
@@ -79,7 +91,7 @@ def _forecast(fitted, name: str, horizon: int) -> pd.Series:
 
 def _forecast_metrics(actual: pd.Series, forecast: pd.Series) -> dict[str, float | int]:
     errors = actual.to_numpy(dtype=float) - forecast.to_numpy(dtype=float)
-    denominator = np.maximum(np.abs(actual.to_numpy(dtype=float)), 1e-9)
+    denominator = np.maximum(np.abs(actual.to_numpy(dtype=float)), MAPE_DENOMINATOR_FLOOR)
     return {
         "horizon": int(len(actual)),
         "mae": float(np.mean(np.abs(errors))),

@@ -5,6 +5,8 @@ from sklearn.model_selection import train_test_split
 
 from clml.config.settings import get_settings
 from clml.constants import (
+    ARTIFACT_COX_COEFFICIENTS_CSV,
+    ARTIFACT_SURVIVAL_PREDICTIONS_CSV,
     COX_PENALIZER,
     KM_PLOT_DPI,
     KM_PLOT_FIGSIZE,
@@ -40,9 +42,9 @@ def run_survival_cox(ctx: RunContext) -> RunResult:
         ),
         "observed_event_fraction": float(test["event"].mean()),
     }
-    write_frame(ctx.run_dir / "cox_coefficients.csv", fitter.summary, include_index=True)
+    write_frame(ctx.run_dir / ARTIFACT_COX_COEFFICIENTS_CSV, fitter.summary, include_index=True)
     write_frame(
-        ctx.run_dir / "survival_predictions.csv",
+        ctx.run_dir / ARTIFACT_SURVIVAL_PREDICTIONS_CSV,
         test.assign(risk_score=risk_score.to_numpy()),
     )
     plot_named_bars(

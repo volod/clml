@@ -63,7 +63,7 @@ Example rule files:
 Every run writes a feature-engineering folder:
 
 ```text
-.data/<method>/<timestamp>/feature_engineering/
+<DATA_DIR>/runs/<task-group>/<method>/<timestamp>/feature_engineering/
 ```
 
 Typical files:

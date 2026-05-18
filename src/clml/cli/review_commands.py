@@ -54,10 +54,12 @@ def runs_last_command(
 
 def runs_export_command(
     method: Annotated[str | None, typer.Option(help="Filter by method name.")] = None,
-    output: Annotated[Path, typer.Option(help="Tabular output path.")] = Path(
-        ".data/runs_summary.csv"
-    ),
+    output: Annotated[Path | None, typer.Option(help="Tabular output path.")] = None,
 ) -> None:
+    from clml.config.settings import get_settings
+
+    resolved = output or (get_settings().reports_dir / "runs_summary.csv")
+    resolved.parent.mkdir(parents=True, exist_ok=True)
     frame = runs_frame(method)
-    write_frame(output, frame)
-    console.print(f"Exported {len(frame)} rows to {output}")
+    write_frame(resolved, frame)
+    console.print(f"Exported {len(frame)} rows to {resolved}")

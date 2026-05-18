@@ -22,7 +22,7 @@ runs:
 	uv run clml runs list
 
 mlflow:
-	uv run mlflow ui --backend-store-uri sqlite:///.data/mlflow.db --host 127.0.0.1 --port 5000
+	uv run mlflow ui --backend-store-uri $$(uv run python -c "from clml.config.settings import get_settings; print(get_settings().mlflow_tracking_uri)") --host 127.0.0.1 --port 5000
 
 list:
 	uv run clml list-methods

@@ -7,3 +7,4 @@ else
   echo ".venv already exists; syncing dependencies"
 fi
 uv sync --all-groups
+uv pip install pip

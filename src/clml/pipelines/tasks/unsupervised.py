@@ -8,7 +8,17 @@ from sklearn.metrics import adjusted_rand_score, f1_score, roc_auc_score, silhou
 from sklearn.model_selection import train_test_split
 
 from clml.config.settings import get_settings
-from clml.constants import ANOMALY_NORMAL_TEST_SIZE
+from clml.constants import (
+    ANOMALY_NORMAL_TEST_SIZE,
+    ARTIFACT_ANOMALIES_PNG,
+    ARTIFACT_ANOMALY_SCORES_CSV,
+    ARTIFACT_CLUSTERS_CSV,
+    ARTIFACT_CLUSTERS_PNG,
+    ARTIFACT_DENSITY_PNG,
+    ARTIFACT_DENSITY_SCORES_CSV,
+    ARTIFACT_EMBEDDING_CSV,
+    ARTIFACT_EMBEDDING_PNG,
+)
 from clml.data.adapters import write_frame
 from clml.pipelines._context import RunContext, RunResult
 from clml.pipelines.tasks._shared import (
@@ -34,8 +44,8 @@ def run_clustering(ctx: RunContext) -> RunResult:
         metrics["silhouette"] = float(silhouette_score(transformed, labels))
     if y is not None:
         metrics["adjusted_rand"] = float(adjusted_rand_score(y, labels))
-    write_frame(ctx.run_dir / "clusters.csv", pd.DataFrame({"cluster": labels}))
-    plot_2d_projection(transformed, labels, ctx.run_dir / "clusters.png", ctx.spec.title)
+    write_frame(ctx.run_dir / ARTIFACT_CLUSTERS_CSV, pd.DataFrame({"cluster": labels}))
+    plot_2d_projection(transformed, labels, ctx.run_dir / ARTIFACT_CLUSTERS_PNG, ctx.spec.title)
     return _finish(ctx.spec, ctx.bundle, ctx.run_dir, pipeline, metrics, best_params, {})
 
 
@@ -51,10 +61,15 @@ def run_dimensionality(ctx: RunContext) -> RunResult:
     if hasattr(model, "explained_variance_ratio_"):
         metrics["explained_variance_ratio_sum"] = float(np.sum(model.explained_variance_ratio_))
     write_frame(
-        ctx.run_dir / "embedding.csv",
+        ctx.run_dir / ARTIFACT_EMBEDDING_CSV,
         pd.DataFrame(embedding[:, :2], columns=["component_0", "component_1"]),
     )
-    plot_2d_projection(embedding[:, :2], labels, ctx.run_dir / "embedding.png", ctx.spec.title)
+    plot_2d_projection(
+        embedding[:, :2],
+        labels,
+        ctx.run_dir / ARTIFACT_EMBEDDING_PNG,
+        ctx.spec.title,
+    )
     return _finish(ctx.spec, ctx.bundle, ctx.run_dir, pipeline, metrics, {}, {})
 
 
@@ -75,15 +90,20 @@ def run_anomaly(ctx: RunContext) -> RunResult:
     predictions = np.where(raw_predictions == -1, 1, 0)
     scores = _anomaly_scores(pipeline, x_test)
     metrics: dict = {
-        "f1_macro": float(f1_score(y_test, predictions, average="macro")),
+        "f1_macro": float(f1_score(y_test, predictions, average="macro", zero_division=0)),
         "roc_auc": float(roc_auc_score(y_test, scores)),
     }
     write_frame(
-        ctx.run_dir / "anomaly_scores.csv",
+        ctx.run_dir / ARTIFACT_ANOMALY_SCORES_CSV,
         pd.DataFrame({"actual": y_test, "predicted": predictions, "score": scores}),
     )
     transformed = pipeline.named_steps["preprocess"].transform(x_test)
-    plot_2d_projection(transformed, predictions, ctx.run_dir / "anomalies.png", ctx.spec.title)
+    plot_2d_projection(
+        transformed,
+        predictions,
+        ctx.run_dir / ARTIFACT_ANOMALIES_PNG,
+        ctx.spec.title,
+    )
     return _finish(ctx.spec, ctx.bundle, ctx.run_dir, pipeline, metrics, {}, {})
 
 
@@ -98,7 +118,7 @@ def run_density(ctx: RunContext) -> RunResult:
         "mean_log_likelihood": float(np.mean(scores)),
         "std_log_likelihood": float(np.std(scores)),
     }
-    write_frame(ctx.run_dir / "density_scores.csv", pd.DataFrame({"log_likelihood": scores}))
+    write_frame(ctx.run_dir / ARTIFACT_DENSITY_SCORES_CSV, pd.DataFrame({"log_likelihood": scores}))
     transformed = pipeline.named_steps["preprocess"].transform(x)
-    plot_2d_projection(transformed, scores, ctx.run_dir / "density.png", ctx.spec.title)
+    plot_2d_projection(transformed, scores, ctx.run_dir / ARTIFACT_DENSITY_PNG, ctx.spec.title)
     return _finish(ctx.spec, ctx.bundle, ctx.run_dir, pipeline, metrics, best_params, {})

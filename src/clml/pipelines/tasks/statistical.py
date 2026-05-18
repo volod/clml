@@ -108,7 +108,7 @@ def run_statsmodels_classification(ctx: RunContext) -> RunResult:
     predictions = (probabilities >= 0.5).astype(int)
     metrics: dict = {
         "accuracy": float(accuracy_score(y_test, predictions)),
-        "f1_macro": float(f1_score(y_test, predictions, average="macro")),
+        "f1_macro": float(f1_score(y_test, predictions, average="macro", zero_division=0)),
         "roc_auc": float(roc_auc_score(y_test, probabilities)),
     }
     write_frame(
@@ -117,7 +117,7 @@ def run_statsmodels_classification(ctx: RunContext) -> RunResult:
     )
     _write_json(
         ctx.run_dir / "classification_report.json",
-        classification_report(y_test, predictions, output_dict=True),
+        classification_report(y_test, predictions, output_dict=True, zero_division=0),
     )
     _write_statsmodels_artifacts(fitted, ctx.run_dir)
     plot_confusion_matrix(y_test, predictions, ctx.run_dir / "confusion_matrix.png")

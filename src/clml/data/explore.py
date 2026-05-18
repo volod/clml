@@ -5,9 +5,21 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from clml.config.log import get_logger
+from clml.constants import (
+    ARTIFACT_CORRELATION_PNG,
+    ARTIFACT_EXPLORATION_JSON,
+    ARTIFACT_FEATURES_PNG,
+    ARTIFACT_NUMERIC_SUMMARY_CSV,
+    CORRELATION_WARN_THRESHOLD_EXPLORE,
+    EXPLORE_MANY_FEATURES_THRESHOLD,
+    IMBALANCE_MINORITY_THRESHOLD,
+    PLOT_DISTRIBUTION_MAX_COLUMNS,
+    SKEW_THRESHOLD,
+    TARGET_CONTINUOUS_MIN_NUNIQUE,
+)
 from clml.data.adapters import write_frame
 from clml.data.catalog import DatasetBundle
-from clml.config.log import get_logger
 from clml.reporting.plots import plot_correlation_heatmap, plot_feature_distributions
 
 logger = get_logger(__name__)
@@ -26,7 +38,12 @@ class ExplorationReport:
 
 
 def explore_dataset(bundle: DatasetBundle, output_dir: Path | None = None) -> ExplorationReport:
-    logger.debug("exploring dataset: %s (%d rows, %d cols)", bundle.info.name, bundle.info.rows, bundle.info.columns)
+    logger.debug(
+        "exploring dataset: %s (%d rows, %d cols)",
+        bundle.info.name,
+        bundle.info.rows,
+        bundle.info.columns,
+    )
     frame = bundle.frame
     numeric = frame[bundle.info.feature_columns].select_dtypes(include="number")
     missing = frame.isna().mean().sort_values(ascending=False)
@@ -47,12 +64,18 @@ def explore_dataset(bundle: DatasetBundle, output_dir: Path | None = None) -> Ex
 
     if output_dir is not None:
         output_dir.mkdir(parents=True, exist_ok=True)
-        with (output_dir / "exploration.json").open("w", encoding="utf-8") as fh:
+        with (output_dir / ARTIFACT_EXPLORATION_JSON).open("w", encoding="utf-8") as fh:
             json.dump(asdict(report), fh, indent=2)
-        write_frame(output_dir / "numeric_summary.csv", numeric.describe().T, include_index=True)
-        plot_correlation_heatmap(numeric, output_dir / "correlation.png")
+        write_frame(
+            output_dir / ARTIFACT_NUMERIC_SUMMARY_CSV,
+            numeric.describe().T,
+            include_index=True,
+        )
+        plot_correlation_heatmap(numeric, output_dir / ARTIFACT_CORRELATION_PNG)
         plot_feature_distributions(
-            frame, bundle.info.feature_columns[:8], output_dir / "features.png"
+            frame,
+            bundle.info.feature_columns[:PLOT_DISTRIBUTION_MAX_COLUMNS],
+            output_dir / ARTIFACT_FEATURES_PNG,
         )
     return report
 
@@ -63,7 +86,7 @@ def _target_summary(
     if target_column is None:
         return None
     target = frame[target_column]
-    if pd.api.types.is_numeric_dtype(target) and target.nunique() > 20:
+    if pd.api.types.is_numeric_dtype(target) and target.nunique() > TARGET_CONTINUOUS_MIN_NUNIQUE:
         return {
             "kind": "continuous",
             "mean": float(target.mean()),
@@ -88,11 +111,11 @@ def _suggestions(bundle: DatasetBundle, numeric: pd.DataFrame, missing: pd.Serie
         suggestions.append(
             "Use one-hot encoding for categorical features; keep it inside Pipeline."
         )
-    if numeric.shape[1] > 25:
+    if numeric.shape[1] > EXPLORE_MANY_FEATURES_THRESHOLD:
         suggestions.append(
             "Use feature selection, PCA, or regularized linear models to reduce variance."
         )
-    if not numeric.empty and numeric.skew(numeric_only=True).abs().max() > 1.0:
+    if not numeric.empty and numeric.skew(numeric_only=True).abs().max() > SKEW_THRESHOLD:
         suggestions.append("Consider log/quantile transforms for skewed numeric features.")
     if _has_high_correlation(numeric):
         suggestions.append(
@@ -103,7 +126,10 @@ def _suggestions(bundle: DatasetBundle, numeric: pd.DataFrame, missing: pd.Serie
             "Start with LogisticRegression, RandomForestClassifier, SVC, and gradient boosting."
         )
         target = bundle.y
-        if target is not None and target.value_counts(normalize=True).min() < 0.2:
+        if (
+            target is not None
+            and target.value_counts(normalize=True).min() < IMBALANCE_MINORITY_THRESHOLD
+        ):
             suggestions.append(
                 "Use stratified validation and class_weight or resampling for imbalance."
             )
@@ -133,7 +159,7 @@ def _has_high_correlation(numeric: pd.DataFrame) -> bool:
     corr = numeric.corr(numeric_only=True).abs()
     mask = np.triu(np.ones(corr.shape), k=1).astype(bool)
     upper = corr.where(mask)
-    return bool(upper.max().max() > 0.85)
+    return bool(upper.max().max() > CORRELATION_WARN_THRESHOLD_EXPLORE)
 
 
 def _floatify_nested(raw: dict[str, dict[str, float]]) -> dict[str, dict[str, float]]:

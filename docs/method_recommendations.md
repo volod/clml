@@ -24,7 +24,7 @@ Choose where reports are written:
 ```bash
 clml suggest-methods \
   --data path/to/dataset.csv \
-  --output-dir .data/method_advice/my_dataset
+  --output-dir <DATA_DIR>/reports/method_advice/my_dataset
 ```
 
 Limit recommendation count:
@@ -139,18 +139,18 @@ dataset profile. You can still run any compatible method with `clml run-data`.
 In this workspace the available file is:
 
 ```bash
-.data/datasets/war/russia_losses_equipment.csv
+<DATA_DIR>/datasets/war/russia_losses_equipment.csv
 ```
 
-The originally requested path, `.data/datasets/war/russians_losses_equipment.csv`, is not present in
+The originally requested path, `<DATA_DIR>/datasets/war/russians_losses_equipment.csv`, is not present in
 this workspace.
 
 Run advice:
 
 ```bash
 clml suggest-methods \
-  --data .data/datasets/war/russia_losses_equipment.csv \
-  --output-dir .data/method_advice/war_equipment
+  --data <DATA_DIR>/datasets/war/russia_losses_equipment.csv \
+  --output-dir <DATA_DIR>/reports/method_advice/war_equipment
 ```
 
 Observed profile:
@@ -183,7 +183,7 @@ Example run:
 ```bash
 clml run-data \
   --method ridge_regression \
-  --data .data/datasets/war/russia_losses_equipment.csv \
+  --data <DATA_DIR>/datasets/war/russia_losses_equipment.csv \
   --target-column drone \
   --trials 0
 ```
@@ -193,7 +193,7 @@ Unsupervised exploration:
 ```bash
 clml run-data \
   --method pca \
-  --data .data/datasets/war/russia_losses_equipment.csv \
+  --data <DATA_DIR>/datasets/war/russia_losses_equipment.csv \
   --trials 0
 ```
 

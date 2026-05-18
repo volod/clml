@@ -28,15 +28,19 @@ def _credit_risk() -> DatasetBundle:
         constants.CREDIT_RISK_DTI_MAX,
     )
     credit_history_years = np.clip(
-        (age - 18)
+        (age - constants.CREDIT_RISK_MIN_CREDIT_AGE)
         * rng.beta(
             constants.CREDIT_RISK_CREDIT_HIST_BETA_A, constants.CREDIT_RISK_CREDIT_HIST_BETA_B, rows
         ),
         0,
-        45,
+        constants.CREDIT_RISK_CREDIT_HIST_MAX,
     )
     delinquencies_2y = rng.poisson(
-        np.clip(debt_to_income * 1.8, 0.05, constants.CREDIT_RISK_DELINQ_CLIP_MAX)
+        np.clip(
+            debt_to_income * constants.CREDIT_RISK_DELINQ_POISSON_SCALE,
+            constants.CREDIT_RISK_DELINQ_POISSON_MIN,
+            constants.CREDIT_RISK_DELINQ_CLIP_MAX,
+        )
     )
     employment_length = np.clip(
         rng.normal(
@@ -62,7 +66,7 @@ def _credit_risk() -> DatasetBundle:
     region = rng.choice(
         ["north", "south", "west", "midwest"], rows, p=constants.CREDIT_RISK_REGION_PROBS
     )
-    application_dates = pd.Timestamp("2023-01-01") + pd.to_timedelta(
+    application_dates = pd.Timestamp(constants.CREDIT_RISK_DATE_START) + pd.to_timedelta(
         rng.integers(0, constants.CREDIT_RISK_DATE_DAYS, rows), unit="D"
     )
     linear_risk = (
@@ -161,7 +165,7 @@ def _housing_prices() -> DatasetBundle:
         rows,
         p=constants.HOUSING_CONDITION_PROBS,
     )
-    listing_dates = pd.Timestamp("2022-01-01") + pd.to_timedelta(
+    listing_dates = pd.Timestamp(constants.HOUSING_DATE_START) + pd.to_timedelta(
         rng.integers(0, constants.HOUSING_DATE_DAYS, rows), unit="D"
     )
     neighborhood_effect = (

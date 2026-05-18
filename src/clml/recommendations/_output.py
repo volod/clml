@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from clml.constants import ARTIFACT_METHOD_ADVICE_JSON, PLOT_DISTRIBUTION_MAX_COLUMNS
 from clml.data.catalog import DatasetBundle
 from clml.data.explore import explore_dataset
 from clml.recommendations._models import DatasetMethodAdvice
@@ -22,14 +23,14 @@ def _write_advice(
 ) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     explore_dataset(bundle, output_dir / "exploration")
-    with (output_dir / "method_advice.json").open("w", encoding="utf-8") as fh:
+    with (output_dir / ARTIFACT_METHOD_ADVICE_JSON).open("w", encoding="utf-8") as fh:
         json.dump(asdict(advice), fh, indent=2)
     _write_markdown(advice, output_dir / "method_advice.md")
     numeric = frame.select_dtypes(include="number")
     plot_correlation_heatmap(numeric, output_dir / "correlation.png")
     plot_feature_distributions(
         frame,
-        frame.columns[:8].tolist(),
+        frame.columns[:PLOT_DISTRIBUTION_MAX_COLUMNS].tolist(),
         output_dir / "feature_distributions.png",
     )
     if advice.recommendations:

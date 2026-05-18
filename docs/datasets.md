@@ -1,6 +1,6 @@
 # Datasets
 
-Datasets are prepared by `make data` and cached under `.data/datasets`. The catalog favors
+Datasets are prepared by `make data` and cached under `<DATA_DIR>/datasets` (default: `.data/datasets`). The catalog favors
 reasonable local examples that show practical tradeoffs without requiring large downloads.
 
 | Dataset | Task | Size | Description | Learning value |

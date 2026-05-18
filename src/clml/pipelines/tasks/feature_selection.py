@@ -3,16 +3,27 @@
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
+from sklearn.metrics import f1_score
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 
 from clml.config.settings import get_settings
-from clml.constants import LOGISTIC_MAX_ITER, TEST_SIZE
+from clml.constants import (
+    ARTIFACT_FEATURE_SELECTION_DIAGNOSTICS_CSV,
+    ARTIFACT_SELECTED_FEATURES_CSV,
+    LOGISTIC_MAX_ITER,
+    TEST_SIZE,
+)
 from clml.data.adapters import write_frame
 from clml.pipelines._context import RunContext, RunResult
 from clml.pipelines.preprocessing import build_preprocessor
-from clml.pipelines.tasks._shared import _feature_engineer, _finish
+from clml.pipelines.tasks._shared import (
+    _binary_probabilities,
+    _classification_metrics,
+    _feature_engineer,
+    _finish,
+    _write_classification_artifacts,
+)
 from clml.reporting.plots import plot_named_bars
 
 
@@ -38,20 +49,15 @@ def run_feature_selection(ctx: RunContext) -> RunResult:
     )
     pipeline.fit(x_train, y_train)
     predictions = pipeline.predict(x_test)
-    probabilities = pipeline.predict_proba(x_test)[:, 1]
+    probabilities = _binary_probabilities(pipeline, x_test, y)
     selected = _selected_features(pipeline)
     metrics: dict[str, float | int] = {
         "n_features_selected": len(selected),
-        "downstream_score": float(f1_score(y_test, predictions, average="macro")),
-        "accuracy": float(accuracy_score(y_test, predictions)),
-        "f1_macro": float(f1_score(y_test, predictions, average="macro")),
-        "roc_auc": float(roc_auc_score(y_test, probabilities)),
+        "downstream_score": float(f1_score(y_test, predictions, average="macro", zero_division=0)),
+        **_classification_metrics(y_test, predictions, probabilities),
     }
-    write_frame(
-        ctx.run_dir / "predictions.csv",
-        pd.DataFrame({"actual": y_test, "predicted": predictions, "probability": probabilities}),
-    )
-    write_frame(ctx.run_dir / "selected_features.csv", pd.DataFrame({"feature": selected}))
+    _write_classification_artifacts(ctx.run_dir, y_test, predictions, probabilities)
+    write_frame(ctx.run_dir / ARTIFACT_SELECTED_FEATURES_CSV, pd.DataFrame({"feature": selected}))
     _write_feature_diagnostics(pipeline, ctx.run_dir)
     plot_named_bars(
         ["selected", "available"],
@@ -85,4 +91,4 @@ def _write_feature_diagnostics(pipeline: Pipeline, run_dir) -> None:
         frame["score"] = selector.scores_
     if hasattr(selector, "ranking_"):
         frame["ranking"] = selector.ranking_
-    write_frame(run_dir / "feature_selection_diagnostics.csv", frame)
+    write_frame(run_dir / ARTIFACT_FEATURE_SELECTION_DIAGNOSTICS_CSV, frame)

@@ -181,7 +181,7 @@ METHODS = {
         "2.3 Clustering",
         "clustering",
         "blobs",
-        lambda seed: ctx.cluster.HDBSCAN(min_cluster_size=ctx.HDBSCAN_MIN_CLUSTER_SIZE),
+        lambda seed: ctx.cluster.HDBSCAN(min_cluster_size=ctx.HDBSCAN_MIN_CLUSTER_SIZE, copy=True),
         notes=(
             "Hierarchical DBSCAN that selects the most stable clusters across density levels. "
             "Automatically determines cluster count; noise points are labeled -1. More robust "

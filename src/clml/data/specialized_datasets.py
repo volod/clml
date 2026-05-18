@@ -239,7 +239,7 @@ def _airline_passengers() -> DatasetBundle:
     periods = constants.AIRLINE_N_PERIODS
     index = np.arange(periods)
     month = index % constants.AIRLINE_SEASONAL_PERIODS
-    dates = pd.date_range("2010-01-01", periods=periods, freq="MS")
+    dates = pd.date_range(constants.AIRLINE_DATE_START, periods=periods, freq="MS")
     seasonal = constants.AIRLINE_SEASONAL_AMPLITUDE * (
         np.sin(2 * np.pi * month / constants.AIRLINE_SEASONAL_PERIODS)
         + 0.35 * np.cos(4 * np.pi * month / constants.AIRLINE_SEASONAL_PERIODS)

@@ -1,13 +1,6 @@
 """Specialized classification runners: imbalanced learning and categorical encoding."""
 
-import pandas as pd
 from sklearn.linear_model import LogisticRegression, SGDClassifier
-from sklearn.metrics import (
-    accuracy_score,
-    classification_report,
-    f1_score,
-    roc_auc_score,
-)
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 
@@ -20,12 +13,15 @@ from clml.constants import (
     TARGET_ENCODER_SMOOTHING,
     TEST_SIZE,
 )
-from clml.data.adapters import write_frame
 from clml.features.rules import RuleBasedFeatureEngineer
 from clml.pipelines._context import RunContext, RunResult
 from clml.pipelines.preprocessing import build_preprocessor
-from clml.pipelines.tasks._shared import _finish, _write_json
-from clml.reporting.plots import plot_confusion_matrix
+from clml.pipelines.tasks._shared import (
+    _binary_probabilities,
+    _classification_metrics,
+    _finish,
+    _write_classification_artifacts,
+)
 
 # ---------------------------------------------------------------------------
 # Imbalanced classification
@@ -94,22 +90,12 @@ def run_imbalanced_classification(ctx: RunContext) -> RunResult:
     pipeline = ImbalancedPipeline(steps=steps)
     pipeline.fit(x_train, y_train)
     predictions = pipeline.predict(x_test)
-    probabilities = pipeline.predict_proba(x_test)[:, 1]
+    probabilities = _binary_probabilities(pipeline, x_test, y)
     metrics: dict = {
-        "accuracy": float(accuracy_score(y_test, predictions)),
-        "f1_macro": float(f1_score(y_test, predictions, average="macro")),
-        "roc_auc": float(roc_auc_score(y_test, probabilities)),
+        **_classification_metrics(y_test, predictions, probabilities),
         "minority_fraction_train": float(y_train.value_counts(normalize=True).min()),
     }
-    write_frame(
-        ctx.run_dir / "predictions.csv",
-        pd.DataFrame({"actual": y_test, "predicted": predictions, "probability": probabilities}),
-    )
-    _write_json(
-        ctx.run_dir / "classification_report.json",
-        classification_report(y_test, predictions, output_dict=True),
-    )
-    plot_confusion_matrix(y_test, predictions, ctx.run_dir / "confusion_matrix.png")
+    _write_classification_artifacts(ctx.run_dir, y_test, predictions, probabilities)
     return _finish(ctx.spec, ctx.bundle, ctx.run_dir, pipeline, metrics, {}, {})
 
 
@@ -172,20 +158,7 @@ def run_categorical_encoding(ctx: RunContext) -> RunResult:
     )
     pipeline.fit(x_train, y_train)
     predictions = pipeline.predict(x_test)
-    metrics: dict = {
-        "accuracy": float(accuracy_score(y_test, predictions)),
-        "f1_macro": float(f1_score(y_test, predictions, average="macro")),
-    }
-    if hasattr(pipeline, "predict_proba"):
-        probabilities = pipeline.predict_proba(x_test)[:, 1]
-        metrics["roc_auc"] = float(roc_auc_score(y_test, probabilities))
-        output = {"actual": y_test, "predicted": predictions, "probability": probabilities}
-    else:
-        output = {"actual": y_test, "predicted": predictions}
-    write_frame(ctx.run_dir / "predictions.csv", pd.DataFrame(output))
-    _write_json(
-        ctx.run_dir / "classification_report.json",
-        classification_report(y_test, predictions, output_dict=True),
-    )
-    plot_confusion_matrix(y_test, predictions, ctx.run_dir / "confusion_matrix.png")
+    probabilities = _binary_probabilities(pipeline, x_test, y)
+    metrics = _classification_metrics(y_test, predictions, probabilities)
+    _write_classification_artifacts(ctx.run_dir, y_test, predictions, probabilities)
     return _finish(ctx.spec, ctx.bundle, ctx.run_dir, pipeline, metrics, {}, {})

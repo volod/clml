@@ -7,11 +7,35 @@ Usage in any module:
 
 import logging
 import sys
+import warnings
 from pathlib import Path
+
+_THIRD_PARTY_LOGGERS = (
+    "mlflow",
+    "optuna",
+)
 
 
 def configure_logging(level: str = "WARNING", log_file: Path | None = None) -> None:
     """Set up root logger for the clml package."""
+    for name in _THIRD_PARTY_LOGGERS:
+        logging.getLogger(name).setLevel(logging.WARNING)
+
+    warnings.filterwarnings(
+        "ignore",
+        message="X does not have valid feature names",
+        category=UserWarning,
+    )
+    warnings.filterwarnings(
+        "ignore",
+        message="y contains no unlabeled samples",
+        category=UserWarning,
+    )
+    warnings.filterwarnings(
+        "ignore",
+        message="Stochastic Optimizer: Maximum iterations",
+    )
+
     root = logging.getLogger("clml")
     root.setLevel(level.upper())
     root.handlers.clear()

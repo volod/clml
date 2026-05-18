@@ -1,5 +1,11 @@
 import pandas as pd
 
+from clml.constants import (
+    CORRELATION_WARN_THRESHOLD_INFERENCE,
+    DATETIME_PARSE_MIN_NOTNA_FRACTION,
+    TARGET_CONTINUOUS_MIN_NUNIQUE,
+)
+
 
 def _infer_time_column(frame: pd.DataFrame) -> str | None:
     candidates = []
@@ -7,7 +13,7 @@ def _infer_time_column(frame: pd.DataFrame) -> str | None:
         name = column.lower()
         if "date" in name or name.endswith("_at") or name in {"day", "month", "year"}:
             parsed = pd.to_datetime(frame[column], errors="coerce")
-            if parsed.notna().mean() > 0.8:
+            if parsed.notna().mean() > DATETIME_PARSE_MIN_NOTNA_FRACTION:
                 candidates.append(column)
     return candidates[0] if candidates else None
 
@@ -48,9 +54,13 @@ def _infer_task(frame: pd.DataFrame, target_column: str | None, time_column: str
     if target_column is None:
         return "unsupervised"
     target = frame[target_column]
-    if time_column and pd.api.types.is_numeric_dtype(target) and target.nunique(dropna=True) > 20:
+    is_continuous_numeric = (
+        pd.api.types.is_numeric_dtype(target)
+        and target.nunique(dropna=True) > TARGET_CONTINUOUS_MIN_NUNIQUE
+    )
+    if time_column and is_continuous_numeric:
         return "timeseries"
-    if pd.api.types.is_numeric_dtype(target) and target.nunique(dropna=True) > 20:
+    if is_continuous_numeric:
         return "regression"
     return "classification"
 
@@ -81,7 +91,11 @@ def _profile_notes(
     if target_column:
         notes.append(f"`{target_column}` is selected as target; override if this is not desired.")
     numeric = frame.select_dtypes(include="number")
-    if len(numeric.columns) >= 2 and numeric.corr(numeric_only=True).abs().max().max() > 0.95:
+    if (
+        len(numeric.columns) >= 2
+        and numeric.corr(numeric_only=True).abs().max().max()
+        > CORRELATION_WARN_THRESHOLD_INFERENCE
+    ):
         notes.append(
             "Several numeric columns are highly correlated; cumulative counters may dominate."
         )

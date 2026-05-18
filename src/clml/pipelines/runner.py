@@ -9,6 +9,7 @@ import mlflow.sklearn
 
 from clml.config.log import get_logger
 from clml.config.settings import get_settings
+from clml.constants import RUN_TIMESTAMP_FORMAT, TASK_GROUPS
 from clml.data.adapters import infer_data_format, read_frame
 from clml.data.catalog import DatasetBundle, DatasetInfo, load_dataset
 from clml.data.explore import explore_dataset
@@ -119,8 +120,9 @@ def _make_context(
     use_fe = settings.feature_engineering if feature_engineering is None else feature_engineering
     rules_path = feature_rules_path or settings.feature_rules
     feature_rules = load_rules(rules_path)
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    run_dir = settings.data_dir / spec.name / timestamp
+    timestamp = datetime.now(timezone.utc).strftime(RUN_TIMESTAMP_FORMAT)
+    task_group = TASK_GROUPS.get(spec.task, spec.task)
+    run_dir = settings.runs_dir / task_group / spec.name / timestamp
     run_dir.mkdir(parents=True, exist_ok=True)
     n_trials = settings.optuna_trials if trials is None else trials
     logger.debug(

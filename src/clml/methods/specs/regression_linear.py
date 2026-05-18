@@ -117,7 +117,10 @@ METHODS = {
         "1.1 Linear Models",
         "regression",
         "housing_prices",
-        lambda seed: ctx.linear_model.RANSACRegressor(min_samples=0.5, random_state=seed),
+        lambda seed: ctx.linear_model.RANSACRegressor(
+            min_samples=ctx.RANSAC_MIN_SAMPLES_FRACTION,
+            random_state=seed,
+        ),
         notes=(
             "Robust regression by repeatedly fitting on random subsets and selecting the "
             "largest consensus set of inliers."

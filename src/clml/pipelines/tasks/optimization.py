@@ -5,6 +5,9 @@ import pandas as pd
 from scipy.optimize import linprog, minimize
 
 from clml.constants import (
+    ARTIFACT_ALLOCATION_CSV,
+    ARTIFACT_COVARIANCE_CSV,
+    ARTIFACT_RESOURCE_USAGE_CSV,
     LP_BINDING_SLACK_TOL,
     LP_LABOR_CAPACITY,
     LP_MACHINE_CAPACITY,
@@ -51,9 +54,9 @@ def _write_portfolio_outputs(
     ].copy()
     allocation["weight"] = clean_weights
     allocation["return_contribution"] = allocation["weight"] * allocation["expected_return"]
-    write_frame(run_dir / "allocation.csv", allocation)
+    write_frame(run_dir / ARTIFACT_ALLOCATION_CSV, allocation)
     write_frame(
-        run_dir / "covariance.csv",
+        run_dir / ARTIFACT_COVARIANCE_CSV,
         pd.DataFrame(covariance, index=frame["asset"], columns=frame["asset"]),
         include_index=True,
     )
@@ -123,8 +126,8 @@ def run_linear_programming(ctx: RunContext) -> RunResult:
     allocation_report = frame[["product", "expected_profit_per_unit", "demand_max_units"]].copy()
     allocation_report["optimized_units"] = allocation
     allocation_report["expected_profit"] = allocation * frame["expected_profit_per_unit"]
-    write_frame(ctx.run_dir / "allocation.csv", allocation_report)
-    write_frame(ctx.run_dir / "resource_usage.csv", resource_report)
+    write_frame(ctx.run_dir / ARTIFACT_ALLOCATION_CSV, allocation_report)
+    write_frame(ctx.run_dir / ARTIFACT_RESOURCE_USAGE_CSV, resource_report)
     metrics: dict = {
         "max_expected_profit": float(-solution.fun),
         "total_units": float(np.sum(allocation)),
@@ -196,7 +199,7 @@ def run_nonlinear_optimization(ctx: RunContext) -> RunResult:
     allocation_report["incremental_sales"] = (
         allocation_report["optimized_expected_sales"] - allocation_report["current_expected_sales"]
     )
-    write_frame(ctx.run_dir / "allocation.csv", allocation_report)
+    write_frame(ctx.run_dir / ARTIFACT_ALLOCATION_CSV, allocation_report)
     metrics: dict = {
         "optimized_expected_sales": float(np.sum(optimized_sales)),
         "current_expected_sales": float(np.sum(current_sales)),

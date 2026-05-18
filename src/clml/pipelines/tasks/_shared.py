@@ -2,7 +2,9 @@
 
 import json
 import logging as stdlib_logging
+import subprocess
 import warnings
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -16,28 +18,59 @@ import skops.io as skops_io
 from sklearn.base import clone
 from sklearn.metrics import (
     accuracy_score,
+    classification_report,
     f1_score,
     mean_absolute_error,
     r2_score,
+    roc_auc_score,
     root_mean_squared_error,
     silhouette_score,
 )
 from sklearn.model_selection import StratifiedKFold, cross_val_score
 from sklearn.pipeline import Pipeline
 
+from clml.config.log import get_logger
 from clml.config.settings import get_settings
-from clml.constants import CV_FOLDS
+from clml.constants import (
+    ARTIFACT_CLASSIFICATION_REPORT_JSON,
+    ARTIFACT_CONFUSION_MATRIX_PNG,
+    ARTIFACT_MODEL_JOBLIB,
+    ARTIFACT_MODEL_SKOPS,
+    ARTIFACT_PREDICTIONS_CSV,
+    ARTIFACT_RUN_JSON,
+    ARTIFACT_THIRD_PARTY_JSON,
+    CV_FOLDS,
+)
 from clml.data.adapters import write_frame
 from clml.data.catalog import DatasetBundle
 from clml.features.rules import RuleBasedFeatureEngineer
-from clml.config.log import get_logger
 from clml.methods.registry import MethodSpec
 from clml.pipelines._context import RunContext, RunResult
 from clml.pipelines._metrics import interpret_metrics
 from clml.pipelines.preprocessing import build_model_pipeline
-from clml.reporting.plots import plot_named_bars
+from clml.reporting.plots import plot_confusion_matrix, plot_named_bars
 
 logger = get_logger(__name__)
+
+
+@lru_cache(maxsize=1)
+def _pip_requirements() -> list[str]:
+    """Export pinned requirements from the uv lock file once per process."""
+    try:
+        out = subprocess.check_output(
+            ["uv", "export", "--frozen", "--no-hashes", "--quiet"],
+            text=True,
+        )
+        reqs = [
+            line.strip()
+            for line in out.splitlines()
+            if line.strip() and not line.startswith("#") and not line.startswith("-e ")
+        ]
+        if reqs:
+            return reqs
+    except Exception:
+        pass
+    return []
 
 
 def _write_json(path: Path, payload: Any) -> None:
@@ -66,7 +99,7 @@ def _finish(
         comparisons=comparisons,
     )
     _write_json(
-        run_dir / "run.json",
+        run_dir / ARTIFACT_RUN_JSON,
         {
             **asdict(result),
             "run_dir": str(run_dir),
@@ -78,13 +111,18 @@ def _finish(
         },
     )
     if comparisons:
-        _write_json(run_dir / "third_party_comparisons.json", comparisons)
+        _write_json(run_dir / ARTIFACT_THIRD_PARTY_JSON, comparisons)
     try:
-        skops_io.dump(fitted_model, run_dir / "model.skops")
+        skops_io.dump(fitted_model, run_dir / ARTIFACT_MODEL_SKOPS)
     except Exception as exc:
-        logger.warning("skops serialization failed for %s (%s) — falling back to joblib", spec.name, exc)
-        joblib.dump(fitted_model, run_dir / "model.joblib")
+        logger.debug(
+            "skops serialization failed for %s (%s) — falling back to joblib",
+            spec.name,
+            exc,
+        )
+        joblib.dump(fitted_model, run_dir / ARTIFACT_MODEL_JOBLIB)
     if isinstance(fitted_model, Pipeline) and mlflow.active_run() is not None:
+        reqs = _pip_requirements()
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             try:
@@ -93,6 +131,7 @@ def _finish(
                     name="registered_model",
                     registered_model_name=spec.name,
                     serialization_format=mlflow.sklearn.SERIALIZATION_FORMAT_SKOPS,
+                    pip_requirements=reqs or None,
                 )
             except Exception:
                 _mlflow_sklearn_log = stdlib_logging.getLogger("mlflow.sklearn")
@@ -103,6 +142,7 @@ def _finish(
                         sk_model=fitted_model,
                         name="registered_model",
                         registered_model_name=spec.name,
+                        pip_requirements=reqs or None,
                     )
                 except Exception:
                     pass
@@ -223,13 +263,47 @@ def _run_third_party_comparisons(
             pipeline.fit(x_train, y_train)
         predictions = pipeline.predict(x_test)
         if ctx.spec.task == "classification":
-            comparisons[name] = {
-                "accuracy": float(accuracy_score(y_test, predictions)),
-                "f1_macro": float(f1_score(y_test, predictions, average="macro")),
-            }
+            comparisons[name] = _classification_metrics(y_test, predictions)
         else:
             comparisons[name] = _regression_metrics(y_test, predictions)
     return comparisons
+
+
+def _classification_metrics(
+    y_true: Any,
+    predictions: Any,
+    probabilities: Any | None = None,
+) -> dict[str, float]:
+    metrics = {
+        "accuracy": float(accuracy_score(y_true, predictions)),
+        "f1_macro": float(f1_score(y_true, predictions, average="macro", zero_division=0)),
+    }
+    if probabilities is not None:
+        metrics["roc_auc"] = float(roc_auc_score(y_true, probabilities))
+    return metrics
+
+
+def _binary_probabilities(pipeline: Pipeline, x: pd.DataFrame, y: pd.Series) -> Any | None:
+    if not hasattr(pipeline, "predict_proba") or y.nunique() != 2:
+        return None
+    return pipeline.predict_proba(x)[:, 1]
+
+
+def _write_classification_artifacts(
+    run_dir: Path,
+    y_true: Any,
+    predictions: Any,
+    probabilities: Any | None = None,
+) -> None:
+    output = {"actual": y_true, "predicted": predictions}
+    if probabilities is not None:
+        output["probability"] = probabilities
+    write_frame(run_dir / ARTIFACT_PREDICTIONS_CSV, pd.DataFrame(output))
+    _write_json(
+        run_dir / ARTIFACT_CLASSIFICATION_REPORT_JSON,
+        classification_report(y_true, predictions, output_dict=True, zero_division=0),
+    )
+    plot_confusion_matrix(y_true, predictions, run_dir / ARTIFACT_CONFUSION_MATRIX_PNG)
 
 
 def _regression_metrics(y_true: Any, predictions: Any) -> dict[str, float]:
